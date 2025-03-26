@@ -118,6 +118,46 @@ body {
     font-size: 18px;
 }
 
+.transcript-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    transition: background 0.2s;
+}
+
+.transcript-item.active {
+    background: rgba(139, 0, 0, 0.2); /* Brown highlight */
+}
+
+.transcript-meta {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+}
+
+.timestamp {
+    color: #ff6b6b;
+    text-decoration: none;
+    font-family: monospace;
+    margin-right: 10px;
+}
+
+.timestamp:hover {
+    text-decoration: underline;
+}
+
+.speaker {
+    color: #4fc3f7;
+    font-weight: bold;
+}
+
+.transcript-text {
+    margin: 0;
+    line-height: 1.6;
+    color: #e0e0e0;
+}
+
 .close-btn {
     background: none;
     border: none;
@@ -133,8 +173,82 @@ body {
 }
 
 .loading {
+    text-align: center;
+    padding: 20px;
+}
+
+.progress-bar {
+    height: 4px;
+    background: #555;
+    margin: 10px auto;
+    max-width: 300px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, transparent, brown, transparent);
+    animation: loading 2s linear infinite;
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+}
+
+/* Audio enhancements info */
+.audio-info {
+    font-size: 0.8em;
     color: #aaa;
-    font-style: italic;
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #444;
+}
+
+/* Chapters styling */
+.chapters-container {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #444;
+  }
+  
+.chapters-title {
+  color: #fff;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+}
+
+.chapter {
+  margin-bottom: 20px;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 5px;
+}
+
+.chapter-timestamp {
+  color: #4fc3f7;
+  font-family: monospace;
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 5px;
+}
+
+.chapter h4 {
+  color: #fff;
+  margin: 5px 0;
+}
+
+.chapter p {
+  color: #ddd;
+  font-size: 0.9em;
+  line-height: 1.5;
 }
 
 .error {

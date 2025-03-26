@@ -1,19 +1,28 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify
 import assemblyai as aai
 import yt_dlp
 import os
 from tempfile import mkdtemp
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
-# Configure AssemblyAI
-aai.settings.api_key = os.getenv('ASSEMBLY_AI_API')  # Replace with your actual API key
+# Verify API key is loaded
+ASSEMBLYAI_API_KEY = os.getenv('ASSEMBLY_AI_API')
+if not ASSEMBLYAI_API_KEY:
+    raise ValueError("No AssemblyAI API key found. Please set ASSEMBLYAI_API_KEY in .env file")
 
-if not aai.settings.api_key:
-    raise ValurError("No AssemblyAI API key found. Please set ASSEMBLYAI_API_KEY in .env file")
+# Configure AssemblyAI with the environment variable
+aai.settings.api_key = ASSEMBLYAI_API_KEY
+
+# Custom vocabulary for better recognition
+CUSTOM_VOCAB = [
+    "AssemblyAI", "YouTube", "Flask", "Python",
+    "transcription", "timestamp", "API", "backend"
+]
 
 @app.route('/')
 def index():
@@ -28,10 +37,8 @@ def transcribe():
         return jsonify({"error": "No URL provided"}), 400
     
     try:
-        # Download audio using yt-dlp
+        # Download and enhance audio
         temp_dir = mkdtemp()
-        # Add to your Python code before ydl_opts
-        os.environ['PATH'] += os.pathsep + 'C:/ffmpeg/ffmpeg-2025-03-24-git-cbbc927a67-full_build/bin'
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': os.path.join(temp_dir, 'audio.%(ext)s'),
@@ -40,27 +47,65 @@ def transcribe():
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'ffmpeg_location': 'C:/ffmpeg/ffmpeg-2025-03-24-git-cbbc927a67-full_build/bin/ffmpeg.exe'
+            'postprocessor_args': [
+                '-af', 'highpass=f=200,lowpass=f=3000,afftdn=nf=-25',
+                '-ar', '16000'
+            ],
+            'ffmpeg_location': os.getenv('FFMPEG_PATH', 'ffmpeg')
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
-        
-        audio_file = os.path.join(temp_dir, 'audio.mp3')
-        
-        # Transcribe with AssemblyAI
+            info = ydl.extract_info(video_url, download=True)
+            audio_file = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+
+        # Enhanced transcription config
+        config = aai.TranscriptionConfig(
+            language_code="en",
+            punctuate=True,
+            format_text=True,
+            disfluencies=False,
+            speaker_labels=True,
+            auto_chapters=True,
+            speech_threshold=0.5,
+            # custom_vocabulary=CUSTOM_VOCAB
+        )
+
         transcriber = aai.Transcriber()
-        transcript = transcriber.transcribe(audio_file)
+        transcript = transcriber.transcribe(audio_file, config=config)
         
         if transcript.error:
             return jsonify({"error": transcript.error}), 500
-        
+
+        # Format results with timestamps from utterances
+        formatted_lines = []
+        for utterance in transcript.utterances:
+            start_sec = utterance.start // 1000
+            timestamp = f"{start_sec // 60:02d}:{start_sec % 60:02d}"
+            formatted_lines.append({
+                'timestamp': timestamp,
+                'speaker': f"Speaker {utterance.speaker}",
+                'text': utterance.text
+            })
+
+        chapters = []
+        if hasattr(transcript, 'chapters'):
+            for chapter in transcript.chapters:
+                start_sec = chapter.start // 1000
+                chapters.append({
+                    'timestamp': f"{start_sec // 60:02d}:{start_sec % 60:02d}",
+                    'title': chapter.headline,
+                    'summary': chapter.summary
+                })
+
         # Clean up
-        os.remove(audio_file)
+        if os.path.exists(audio_file):
+            os.remove(audio_file)
         os.rmdir(temp_dir)
         
         return jsonify({
-            "transcript": transcript.text
+            'transcript': formatted_lines,
+            'audio_enhancements': ydl_opts['postprocessor_args'],
+            'chapters': chapters,
         })
         
     except Exception as e:
