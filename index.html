@@ -3,17 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>yt-video-search</title>
+    <title>YouTube Video with Transcript</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <div class="content">
             <div class="url-input-container">
-                <input type="text" placeholder="Enter youtube URL" id="yt-url-input" />
-                <button class="load-video-btn" onclick="loadVideo()">Load video</button>
+                <input type="text" placeholder="Enter YouTube URL" id="yt-url-input" />
+                <button class="load-video-btn" onclick="loadVideo()">Load Video</button>
+                <button class="expand-btn" id="expand-btn" onclick="toggleSidebar()">Expand</button>
             </div>
-            <div class="video-container" id="video-container"></div>
+            <div class="main-content">
+                <div class="video-container" id="video-container"></div>
+                <div class="sidebar" id="sidebar">
+                    <div class="transcript-header">
+                        <h3>Transcript</h3>
+                        <button class="close-btn" onclick="toggleSidebar()">×</button>
+                    </div>
+                    <div class="transcript-content" id="transcript-content"></div>
+                </div>
+            </div>
         </div>
     </div>
 
