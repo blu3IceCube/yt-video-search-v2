@@ -78,29 +78,33 @@ function extractVideoId(url) {
   return match && match[2].length === 11 ? match[2] : null;
 }
 
-// Format transcript with clickable timestamps and speaker labels
+// Update the display format to handle ElevenLabs response
 function formatTranscript(transcript) {
   if (!transcript || !transcript.length) {
     return '<p class="no-transcript">No transcript available</p>';
   }
 
-  return transcript
-    .map(
-      (item) => `
-    <div class="transcript-item">
-      <div class="transcript-meta">
-        <a href="#" class="timestamp" data-time="${convertToSeconds(
-          item.timestamp
-        )}">
-          [${item.timestamp}]
-        </a>
-        <span class="speaker">${item.speaker}:</span>
-      </div>
-      <p class="transcript-text">${item.text}</p>
-    </div>
-  `
-    )
-    .join("");
+  return transcript;
+  //   .map(
+  //     (item) => `
+  //     <div class="transcript-item">
+  //         <div class="transcript-meta">
+  //             <a href="#" class="timestamp" data-time="${convertToSeconds(
+  //               item.timestamp
+  //             )}">
+  //                 [${item.timestamp}]
+  //             </a>
+  //             ${
+  //               item.speaker
+  //                 ? `<span class="speaker">${item.speaker}:</span>`
+  //                 : ""
+  //             }
+  //         </div>
+  //         <p class="transcript-text">${item.text}</p>
+  //     </div>
+  // `
+  //   )
+  //   .join("");
 }
 
 function displayChapters(chapters) {
@@ -154,10 +158,9 @@ document.addEventListener("click", function (e) {
   }
 });
 
-// Enhanced loading with retries
-async function getVideoTranscription(videoId, retries = 2) {
+// Only need to update the API endpoint reference
+async function getVideoTranscription(videoId) {
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-
   try {
     const response = await fetch("/transcribe", {
       method: "POST",
@@ -172,10 +175,7 @@ async function getVideoTranscription(videoId, retries = 2) {
 
     return await response.json();
   } catch (error) {
-    if (retries > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      return getVideoTranscription(videoId, retries - 1);
-    }
-    throw error;
+    console.error("ElevenLabs Error:", error);
+    throw new Error(`Transcription failed: ${error.message}`);
   }
 }

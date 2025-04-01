@@ -1,28 +1,22 @@
 from flask import Flask, request, jsonify
-import assemblyai as aai
-import yt_dlp
 import os
+from io import BytesIO
 from tempfile import mkdtemp
+import yt_dlp
+from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 # Verify API key is loaded
-ASSEMBLYAI_API_KEY = os.getenv('ASSEMBLY_AI_API')
-if not ASSEMBLYAI_API_KEY:
-    raise ValueError("No AssemblyAI API key found. Please set ASSEMBLYAI_API_KEY in .env file")
+ELEVENLABS_API_KEY = os.getenv('ELEVENLABS_API_KEY')
+if not ELEVENLABS_API_KEY:
+    raise ValueError("No ElevenLabs API key found. Please set ELEVENLABS_API_KEY in the .env file.")
 
-# Configure AssemblyAI with the environment variable
-aai.settings.api_key = ASSEMBLYAI_API_KEY
-
-# Custom vocabulary for better recognition
-CUSTOM_VOCAB = [
-    "AssemblyAI", "YouTube", "Flask", "Python",
-    "transcription", "timestamp", "API", "backend"
-]
+# Initialize ElevenLabs client
+client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
 @app.route('/')
 def index():
@@ -37,7 +31,7 @@ def transcribe():
         return jsonify({"error": "No URL provided"}), 400
     
     try:
-        # Download and enhance audio
+        # Download audio
         temp_dir = mkdtemp()
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -47,10 +41,6 @@ def transcribe():
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'postprocessor_args': [
-                '-af', 'highpass=f=200,lowpass=f=3000,afftdn=nf=-25',
-                '-ar', '16000'
-            ],
             'ffmpeg_location': os.getenv('FFMPEG_PATH', 'ffmpeg')
         }
         
@@ -58,58 +48,42 @@ def transcribe():
             info = ydl.extract_info(video_url, download=True)
             audio_file = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
 
-        # Enhanced transcription config
-        config = aai.TranscriptionConfig(
-            language_code="en",
-            punctuate=True,
-            format_text=True,
-            disfluencies=False,
-            speaker_labels=True,
-            auto_chapters=True,
-            speech_threshold=0.5,
-            # custom_vocabulary=CUSTOM_VOCAB
+        # Read audio data
+        with open(audio_file, 'rb') as f:
+            audio_data = BytesIO(f.read())
+
+        # Transcribe audio using ElevenLabs
+        transcription = client.speech_to_text.convert(
+            file=audio_data,
+            model_id="scribe_v1",
+            diarize=True,  # Enable speaker diarization
+            tag_audio_events=True  # Tag non-speech audio events
         )
-
-        transcriber = aai.Transcriber()
-        transcript = transcriber.transcribe(audio_file, config=config)
         
-        if transcript.error:
-            return jsonify({"error": transcript.error}), 500
-
-        # Format results with timestamps from utterances
-        formatted_lines = []
-        for utterance in transcript.utterances:
-            start_sec = utterance.start // 1000
-            timestamp = f"{start_sec // 60:02d}:{start_sec % 60:02d}"
-            formatted_lines.append({
-                'timestamp': timestamp,
-                'speaker': f"Speaker {utterance.speaker}",
-                'text': utterance.text
-            })
-
-        chapters = []
-        if hasattr(transcript, 'chapters'):
-            for chapter in transcript.chapters:
-                start_sec = chapter.start // 1000
-                chapters.append({
-                    'timestamp': f"{start_sec // 60:02d}:{start_sec % 60:02d}",
-                    'title': chapter.headline,
-                    'summary': chapter.summary
-                })
+        # Format transcript with timestamps and speaker labels
+        # formatted_transcript = []
+        # for word_info in transcription.words:
+        #     start_sec = word_info.start
+        #     timestamp = f"{int(start_sec // 60):02d}:{int(start_sec % 60):02d}"
+        #     speaker = word_info.speaker_id
+        #     text = word_info.text
+        #     formatted_transcript.append({
+        #         'timestamp': timestamp,
+        #         'speaker': f"Speaker {speaker}",
+        #         'text': text
+        #     })
 
         # Clean up
-        if os.path.exists(audio_file):
-            os.remove(audio_file)
+        os.remove(audio_file)
         os.rmdir(temp_dir)
         
-        return jsonify({
-            'transcript': formatted_lines,
-            'audio_enhancements': ydl_opts['postprocessor_args'],
-            'chapters': chapters,
-        })
+        # return jsonify({'transcript': formatted_transcript})
+        return jsonify({'transcript': str(transcription.text)})
         
     except Exception as e:
+        print("Error:", str(e))  # Print error for debugging
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
