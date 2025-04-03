@@ -23,7 +23,7 @@ async function loadVideo() {
   // Clear previous content
   videoContainer.innerHTML = "";
   transcriptContent.innerHTML = '<p class="loading">Loading transcript...</p>';
-  chaptersContainer.innerHTML = "";
+  // chaptersContainer.innerHTML = "";
 
   // Extract video ID
   const videoId = extractVideoId(videoURL);
@@ -179,3 +179,47 @@ async function getVideoTranscription(videoId) {
     throw new Error(`Transcription failed: ${error.message}`);
   }
 }
+
+// SEARCH FUNCTIONALITY
+function searchTranscript() {
+  const searchInput = document
+    .getElementById("search-input")
+    .value.toLowerCase();
+  const transcriptItems = document.querySelectorAll(".transcript-item");
+
+  if (!searchInput) {
+    clearSearchHighlights();
+    return;
+  }
+
+  let matchIndex = 0;
+  let firstMatch = null;
+
+  transcriptItems.forEach((item, index) => {
+    const text = item.getAttribute("data-text");
+
+    if (text.includes(searchInput)) {
+      item.classList.add("highlight");
+      if (matchIndex === 0) firstMatch = item;
+      matchIndex++;
+    } else {
+      item.classList.remove("highlight");
+    }
+  });
+
+  if (firstMatch) {
+    firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+// Clear highlights when search is empty
+function clearSearchHighlights() {
+  document.querySelectorAll(".transcript-item").forEach((item) => {
+    item.classList.remove("highlight");
+  });
+}
+
+// Attach event listener to search input
+document
+  .getElementById("search-input")
+  .addEventListener("input", searchTranscript);
