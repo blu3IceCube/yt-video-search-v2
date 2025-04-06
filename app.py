@@ -5,6 +5,7 @@ from tempfile import mkdtemp
 import yt_dlp
 from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
+import glob
 
 load_dotenv()
 
@@ -31,7 +32,7 @@ def transcribe():
         return jsonify({"error": "No URL provided"}), 400
     
     try:
-        # Download audio
+        # Step 1: Create temp directory
         temp_dir = mkdtemp()
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -41,14 +42,21 @@ def transcribe():
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'ffmpeg_location': os.getenv('FFMPEG_PATH', 'ffmpeg')
+            'ffmpeg_location': os.getenv('FFMPEG_PATH', 'ffmpeg'),
+            'quiet': True
         }
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(video_url, download=True)
-            audio_file = ydl.prepare_filename(info).replace('.webm', '.mp3').replace('.m4a', '.mp3')
+            ydl.download([video_url])
 
-        # Read audio data
+        # Step 2: Find the MP3 file in temp_dir
+        mp3_files = glob.glob(os.path.join(temp_dir, "*.mp3"))
+        if not mp3_files:
+            raise FileNotFoundError("MP3 file not found after download.")
+        
+        audio_file = mp3_files[0]  # Use the first .mp3 file found
+
+        # Step 3: Read audio data
         with open(audio_file, 'rb') as f:
             audio_data = BytesIO(f.read())
 
