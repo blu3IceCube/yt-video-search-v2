@@ -21,7 +21,12 @@
                         <h3>Transcript</h3>
                         <button class="close-btn" onclick="toggleSidebar()">×</button>
                     </div>
-                    <div class="transcript-content" id="transcript-content"></div>
+                    <div class="transcript-content" id="transcript-content">
+                        <div id="loading-indicator" class="loading" style="display: none;">
+                            Processing audio and transcribing...
+                            <div class="progress-bar"></div>
+                        </div>
+                    </div>
                     <div class="search-container">
                         <input type="text" id="search-input" placeholder="Search transcript..." />
                         <button onclick="searchTranscript()" class="search-btn">Search</button>
