@@ -70,7 +70,7 @@ def transcribe():
             model_id="scribe_v1",
             diarize=True,  # Enable speaker diarization
             tag_audio_events=True,  # Tag non-speech audio events
-            timestamps_granularity='word' # Request word-level timestamps
+            timestamps_granularity='word', # Request word-level timestamps
         )
         
         # Step 4: Format transcript with timestamps and speaker labels from word-level data
@@ -79,7 +79,6 @@ def transcribe():
         formatted_transcript = []
         # Check if transcription is valid and has iterable words
         if transcription and hasattr(transcription, 'words') and transcription.words is not None and len(transcription.words) > 0:
-           # ... (your existing segmentation loop code here) ...
            current_segment = None
            # Group words into segments based on speaker or short pauses
            for word in transcription.words:
@@ -136,9 +135,29 @@ def transcribe():
                       # You might want a more aggressive cleanup if needed
              except OSError as e:
                  print(f"Error removing temporary directory {temp_dir}: {e}")
-        
+
+        grouped_captions = []
+        group = {"text": "", "start": None, "end": None}
+
+        for i, word in enumerate(transcription.words):
+            if group["start"] is None:
+                group["start"] = word.start
+
+            group["text"] += (" " if group["text"] else "") + word.text
+            group["end"] = word.end
+
+            # Group by 2 seconds or 10 words
+            next_word = transcription.words[i+1] if i+1 < len(transcription.words) else None
+            if (group["end"] - group["start"] >= 8.0) or (i % 30 == 19) or not next_word:
+                grouped_captions.append(group)
+                group = {"text": "", "start": None, "end": None}
+
+
+        # print(f"captions_format {grouped_captions}")
+
         return jsonify({
             'transcript': formatted_transcript,
+            'captions': grouped_captions
             })
 
     except Exception as e:

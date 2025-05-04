@@ -1,4 +1,9 @@
-// script.js - Complete Updated Version
+let isDragging = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+let captionBox = null;
+let groupedCaptions = []
+let player;
 
 // Toggle sidebar visibility
 function toggleSidebar() {
@@ -18,7 +23,6 @@ async function loadVideo() {
   const videoURL = document.getElementById("yt-url-input").value;
   const videoContainer = document.getElementById("video-container");
   const transcriptContent = document.getElementById("transcript-content");
-  const chaptersContainer = document.getElementById("chapters-container");
   const loadingIndicator = document.getElementById("loading-indicator"); // Get the loading indicator element
 
   // Clear previous content
@@ -28,8 +32,6 @@ async function loadVideo() {
   if (loadingIndicator) {
     console.log("Showing loading indicator...");
     loadingIndicator.style.display = "block";
-    // Optional: You might want to clear transcriptContent.innerHTML here too
-    // transcriptContent.innerHTML = '';
 
     // Automatically expand sidebar when loading starts
     const sidebar = document.getElementById("sidebar");
@@ -45,8 +47,6 @@ async function loadVideo() {
   if (loadingIndicator) {
     console.log("Showing loading indicator..."); // Confirm show logic is reached
     loadingIndicator.style.display = "block";
-    // Optionally clear previous text messages if any
-    // transcriptContent.innerHTML = ''; // If you want ONLY the spinner visible
   } else {
     console.warn("Loading indicator element not found!"); // Log if element wasn't found
     // Fallback for debugging if element not found
@@ -67,16 +67,30 @@ async function loadVideo() {
   }
 
   // Display video
-  videoContainer.innerHTML = `
-      <iframe
-          src="http://www.youtube.com/embed/${videoId}?enablejsapi=1"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen>
-      </iframe>`;
+  // videoContainer.innerHTML = `
+  //     <iframe
+  //         src="http://www.youtube.com/embed/${videoId}?enablejsapi=1"
+  //         frameborder="0"
+  //         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  //         allowfullscreen>
+  //     </iframe>`;
 
-  // Keep the debug info open until fetch results
-  // console.log("Initiating fetch request..."); // Optional log
+  videoContainer.innerHTML = `<div id='player'></div>`
+
+  player = new YT.Player("player", {
+    height: "360",
+    width: "640",
+    videoId: videoId,
+    events: {
+      onReady: onPlayerReady
+    }
+  });
+  
+  function onPlayerReady(event) {
+    console.log("YouTube player is ready");
+    // Optional: event.target.playVideo(); // Autoplay
+  }
+  
 
   try {
     // Call backend to get transcription
@@ -92,7 +106,6 @@ async function loadVideo() {
       loadingIndicator.style.display = "none";
     }
 
-    // ... (rest of try block for processing response) ...
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || "Transcription failed");
@@ -101,7 +114,10 @@ async function loadVideo() {
     const data = await response.json();
 
     formatTranscript(data.transcript);
-    // Removed chapters logic
+
+    groupedCaptions = data.captions
+    startGroupedCaptionSync()
+
   } catch (error) {
     console.error("Error:", error);
     // Hide the loading indicator on error
@@ -110,17 +126,11 @@ async function loadVideo() {
       loadingIndicator.style.display = "none";
     }
     transcriptContent.innerHTML = `<p class="error">Error: ${error.message}</p>`;
-  } finally {
-    // Ensure debug logging ends whether success or error
   }
 }
 
 // Extract YouTube video ID from URL
 function extractVideoId(url) {
-  // const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  // const match = url.match(regExp);
-  // return match && match[2].length === 11 ? match[2] : null;
-
   if (!url) {
     return null;
   }
@@ -246,12 +256,6 @@ function searchTranscript() {
   const transcriptItems = document.querySelectorAll(".transcript-item");
   const transcriptContentDiv = document.getElementById("transcript-content"); // Reference to the main content div
 
-  // --- START DEBUGGING PRINTS FOR SEARCH ---
-  console.log("\n--- Search Debug Info ---");
-  console.log(`Search triggered. Input: "${searchInput}"`);
-  console.log(`Found ${transcriptItems.length} transcript items.`);
-  // --- END DEBUGGING PRINTS FOR SEARCH ---
-
   // Clear previous highlights first
   clearSearchHighlights(); // This function will now just remove the spans
 
@@ -283,10 +287,6 @@ function searchTranscript() {
       return; // Skip if element or data is missing
     }
 
-    // --- DEBUGGING PRINT FOR EACH ITEM ---
-    // console.log(`Checking item with data-text: "${originalText.substring(0, 100)}..." for "${searchInput}"`); // Print start of text
-    // --- END DEBUGGING PRINT FOR EACH ITEM ---
-
     // Check if the original text contains the search input (case-insensitive)
     if (originalText.includes(searchInput.toLowerCase())) {
       // If a match is found in this segment's original text,
@@ -300,11 +300,6 @@ function searchTranscript() {
       );
 
       transcriptTextElement.innerHTML = highlightedHtml;
-
-      // --- DEBUGGING PRINT FOR MATCH ---
-      console.log(`Match found in segment. Setting innerHTML.`);
-      // console.log(`Resulting HTML (partial): "${highlightedHtml.substring(0, 200)}..."`);
-      // --- END DEBUGGING PRINT FOR MATCH ---
 
       // Keep track of the first match element for scrolling
       if (!matchFoundOverall) {
@@ -344,6 +339,72 @@ function clearSearchHighlights() {
     // Ensure the item itself doesn't have the main highlight class (from old logic)
     item.classList.remove("highlight"); // Remove the old item highlight class
   });
+}
+
+function toggleCaptions() {
+  captionBox = document.getElementById("caption-box");
+  const toggleBtn = document.getElementById("toggle-captions-btn");
+
+  if (captionBox.style.display === "none" || captionBox.style.display === "") {
+    captionBox.style.display = "block";
+    toggleBtn.textContent = "Disable Captions";
+  } else {
+    captionBox.style.display = "none";
+    toggleBtn.textContent = "Enable Captions";
+  }
+}
+
+function closeCaptionBox() {
+  captionBox = document.getElementById("caption-box");
+  const toggleBtn = document.getElementById("toggle-captions-btn");
+
+  captionBox.style.display = "none";
+  toggleBtn.textContent = "Enable Captions";
+}
+
+function startDrag(e) {
+  captionBox = document.getElementById("caption-box");
+  isDragging = true;
+
+  dragOffsetX = e.clientX - captionBox.offsetLeft;
+  dragOffsetY = e.clientY - captionBox.offsetTop;
+
+  document.addEventListener("mousemove", dragCaptionBox);
+  document.addEventListener("mouseup", stopDrag);
+}
+
+function dragCaptionBox(e) {
+  if (!isDragging || !captionBox) return;
+
+  captionBox.style.left = `${e.clientX - dragOffsetX}px`;
+  captionBox.style.top = `${e.clientY - dragOffsetY}px`;
+  captionBox.style.position = "absolute"; // Make sure it’s positioned
+}
+
+function stopDrag() {
+  isDragging = false;
+  document.removeEventListener("mousemove", dragCaptionBox);
+  document.removeEventListener("mouseup", stopDrag);
+}
+
+function startGroupedCaptionSync() {
+  const captionTextBox = document.getElementById("caption-text");
+
+  if (!captionTextBox || !groupedCaptions.length || !player) return;
+
+  setInterval(() => {
+    const currentTime = player.getCurrentTime();
+
+    const currentCaption = groupedCaptions.find(
+      (cap) => currentTime >= cap.start && currentTime <= cap.end
+    );
+
+    if (currentCaption) {
+      captionTextBox.innerText = currentCaption.text;
+    } else {
+      captionTextBox.innerText = '';
+    }
+  }, 200);
 }
 
 // Attach event listener to search input
