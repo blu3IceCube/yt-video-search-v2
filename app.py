@@ -26,7 +26,10 @@ def index():
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
     data = request.json
+    print(f"data from app.py {data}")
     video_url = data.get('video_url')
+
+    # print(f"data from app.py {data}")
     
     if not video_url:
         return jsonify({"error": "No URL provided"}), 400

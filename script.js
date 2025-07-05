@@ -113,6 +113,9 @@ async function loadVideo() {
 
     const data = await response.json();
 
+    console.log("response", response);
+    console.log("data", data);
+
     // Store both data structures
     transcriptSegmentsData = data.transcript; // Speaker segments
     groupedCaptions = data.captions; // Timed text segments (for captions and main transcript display)
