@@ -4,9 +4,14 @@
     margin: 0;
 }
 
+html {
+    height: 100%;
+}
+
 body {
     background-color: rgb(45, 43, 43);
     font-family: Arial, sans-serif;
+    height: 100%;
 }
 
 .container {
@@ -313,6 +318,7 @@ body {
 
 .caption-text {
     /* max-height: 50px; ✅ Ensures it's compact */
+    width: 100%;
     overflow: hidden;
     user-select: none;
     text-align: center;
